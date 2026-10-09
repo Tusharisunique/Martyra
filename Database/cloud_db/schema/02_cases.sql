@@ -18,7 +18,7 @@ CREATE TABLE case_members (
     user_id        INT NOT NULL REFERENCES users(user_id),
     access_level   VARCHAR(10) NOT NULL CHECK (access_level IN ('view', 'edit', 'owner')),
     PRIMARY KEY (case_id, user_id)
-);
+); 
 
 -- Indexes for search ("all cases in this region between these dates")
 CREATE INDEX idx_cases_region ON cases(region);
