@@ -1,0 +1,44 @@
+[versions]
+agp                 = "8.7.0"
+kotlin              = "2.0.20"
+ksp                 = "2.0.20-1.0.25"
+room                = "2.6.1"
+sqlcipher           = "4.5.7"
+coroutines          = "1.8.1"
+coreKtx             = "1.13.1"
+appcompat           = "1.7.0"
+junit               = "4.13.2"
+androidxTestCore    = "1.6.1"
+androidxTestRunner  = "1.6.2"
+androidxTestRules   = "1.6.1"
+espressoCore        = "3.6.1"
+
+[libraries]
+# AndroidX Core
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+
+# Room
+room-runtime  = { group = "androidx.room", name = "room-runtime",  version.ref = "room" }
+room-ktx      = { group = "androidx.room", name = "room-ktx",      version.ref = "room" }
+room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+room-testing  = { group = "androidx.room", name = "room-testing",  version.ref = "room" }
+
+# SQLCipher
+sqlcipher-android = { group = "net.zetetic", name = "sqlcipher-android", version.ref = "sqlcipher" }
+
+# Coroutines
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-test    = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test",    version.ref = "coroutines" }
+
+# Testing
+junit               = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-test-core  = { group = "androidx.test", name = "core",              version.ref = "androidxTestCore" }
+androidx-test-runner= { group = "androidx.test", name = "runner",            version.ref = "androidxTestRunner" }
+androidx-test-rules = { group = "androidx.test", name = "rules",             version.ref = "androidxTestRules" }
+espresso-core       = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+
+[plugins]
+android-library  = { id = "com.android.library",          version.ref = "agp" }
+kotlin-android   = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+ksp              = { id = "com.google.devtools.ksp",       version.ref = "ksp" }
