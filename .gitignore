@@ -1,8 +1,30 @@
-# Design assets
+# Build outputs
+.gradle/
+build/
+app/build/
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# Local config
+local.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Kotlin
+.kotlin/
+
+# Logs
+*.log
+
+# Design assets (kept locally, not in repo)
 design/
 
-# Project management & documentation
+# Docs (managed locally)
 AGENTS.md
 final_flow.md
 PRD.md
-
