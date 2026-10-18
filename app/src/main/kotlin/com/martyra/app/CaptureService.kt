@@ -157,12 +157,7 @@ class CaptureService : LifecycleService() {
             this, android.Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
-        val n = Notification.Builder(this, CH_ID)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Recording")
-            .setOngoing(true)
-            .build()
-
+        val n = buildRecordingNotification()
         if (Build.VERSION.SDK_INT >= 30) {
             var fType = ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA or
                         ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
@@ -178,8 +173,10 @@ class CaptureService : LifecycleService() {
     fun stopRecording() {
         if (sessionId == 0L) return
         stopLoop()
+        // Remove the recording notification IMMEDIATELY — not after the last segment finalizes
+        stopForeground(STOP_FOREGROUND_REMOVE)
         notifyState()
-        if (clientMessenger == null && recording == null) stopSelf()
+        // Service will call stopSelf() once the last in-flight recording finishes in onFinalize()
     }
 
     @SuppressLint("MissingPermission")
@@ -255,11 +252,17 @@ class CaptureService : LifecycleService() {
         if (going) {
             ContextCompat.getMainExecutor(this).execute { startSegment() }
         } else {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            notifyState()
+            // Last segment done; service can die if nothing else holds it
             if (clientMessenger == null) stopSelf()
         }
     }
+
+    private fun buildRecordingNotification(): Notification =
+        Notification.Builder(this, CH_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Recording")
+            .setOngoing(true)
+            .build()
 
     private fun stopLoop() {
         if (sessionId != 0L) lastSessionId = sessionId

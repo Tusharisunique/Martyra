@@ -14,6 +14,10 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SEC
 const app = Fastify({ logger: false });
 app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer', bodyLimit: 52428800 }, (_, b, done) => done(null, b));
 
+app.addHook('onRequest', async (req) => {
+  console.log(`[REQ] ${req.method} ${req.url.slice(0, 80)}`);
+});
+
 app.get('/health', async () => ({ ok: true }));
 
 const schema = {
@@ -74,6 +78,7 @@ app.put('/v1/evidence/:session/:seq', { schema, onRequest: authHook }, async (re
   if (stErr) throw stErr;
 
   const sha = createHash('sha256').update(req.body).digest('hex');
+  const hashOk = sha === claimed;
   const { error: inErr } = await supabase.from('evidence').insert({
     user_id: uid, session, seq, kind, path: storagePath,
     captured_at: new Date(Number(ts)).toISOString(),
@@ -84,7 +89,7 @@ app.put('/v1/evidence/:session/:seq', { schema, onRequest: authHook }, async (re
     if (inErr.code === '23505') return reply.send({ duplicate: true });
     throw inErr;
   }
-  return reply.send({ hash_ok: sha === claimed });
+  return reply.send({ hash_ok: hashOk });
 });
 
 app.setErrorHandler((err, _req, reply) => {

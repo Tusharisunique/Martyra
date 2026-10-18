@@ -24,7 +24,7 @@ data class Evidence(
     val status: Int
 )
 
-class Db(ctx: Context) {
+class Db(ctx: Context) : AutoCloseable {
     companion object {
         init {
             System.loadLibrary("sqlcipher")
@@ -68,7 +68,8 @@ class Db(ctx: Context) {
         val list = mutableListOf<Evidence>()
         val c: Cursor = db.rawQuery(
             "SELECT file, session, seq, ts, lat, lon, sha256, kind, device, status " +
-                "FROM evidence WHERE status < ? ORDER BY ts ASC",
+                "FROM evidence WHERE status < ? " +
+                "ORDER BY CASE WHEN kind='photo' THEN 0 ELSE 1 END, session ASC, seq ASC",
             arrayOf("$UPLOADED")
         )
         c.use {
@@ -92,6 +93,47 @@ class Db(ctx: Context) {
 
     fun setStatus(file: String, s: Int) {
         db.execSQL("UPDATE evidence SET status=? WHERE file=?", arrayOf(s, file))
+    }
+
+    /**
+     * Reset a file that got stuck in SYNCING back to CAPTURED so the
+     * next worker pass can retry it. The forward-only trigger prevents
+     * direct UPDATE, so we delete and re-insert the row.
+     */
+    fun resetToCapture(file: String) {
+        db.beginTransaction()
+        try {
+            val c = db.rawQuery(
+                "SELECT session, seq, ts, lat, lon, sha256, kind, device FROM evidence WHERE file=?",
+                arrayOf(file)
+            )
+            c.use {
+                if (it.moveToFirst()) {
+                    val s = it.getLong(0); val sq = it.getInt(1); val t = it.getLong(2)
+                    val la = if (it.isNull(3)) null else it.getDouble(3)
+                    val lo = if (it.isNull(4)) null else it.getDouble(4)
+                    val sh = it.getString(5); val k = it.getString(6); val d = it.getString(7)
+                    db.execSQL("DELETE FROM evidence WHERE file=?", arrayOf(file))
+                    db.execSQL(
+                        "INSERT INTO evidence(file,session,seq,ts,lat,lon,sha256,kind,device,status) VALUES(?,?,?,?,?,?,?,?,?,0)",
+                        arrayOf(file, s, sq, t, la, lo, sh, k, d)
+                    )
+                }
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    fun ensurePending(file: String) {
+        val c = db.rawQuery("SELECT status FROM evidence WHERE file=?", arrayOf(file))
+        val st = c.use { if (it.moveToFirst()) it.getInt(0) else null }
+        if (st != null && st >= UPLOADED) resetToCapture(file)
+    }
+
+    override fun close() {
+        runCatching { db.close() }
     }
 }
 

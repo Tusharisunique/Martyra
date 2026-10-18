@@ -38,9 +38,20 @@
   - `stopLoop()`: Unconditionally invokes `recording?.stop()` rather than guarding on stale `s != 0L`.
   - `MainActivity.kt`: Immediately updates local UI state on stop, stops the timer, and debounces shutter clicks (500 ms) to prevent accidental rapid re-triggers.
   - `Screens.kt`: Added tactile spring scale bounce animation on every shutter tap.
-- **Background Upload & Battery Optimization Permission**:
-  - Added `<uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />` to `AndroidManifest.xml`.
-  - Added `reqBatteryOpt()` in `MainActivity.kt` requesting `Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` so the OS does not freeze background uploads or kill `UploadWorker` during app-idle or Doze mode.
+- **Recording Notification Lifecycle**:
+  - `stopForeground(STOP_FOREGROUND_REMOVE)` is now called immediately inside `CaptureService.stopRecording()`, instantly removing the "Recording" notification from the status bar instead of keeping it for 10-20 seconds while segments finalize and hash.
+- **PostgreSQL Generated Column Fix (500 Server Error)**:
+  - Root cause resolved: in `server/server.js`, `hash_ok` was being passed in the `evidence.insert()` payload. Because `hash_ok` is defined as `GENERATED ALWAYS AS (sha256 = claimed_sha256) STORED` in Postgres, every insert was rejected with `cannot insert a non-DEFAULT value into column "hash_ok"`, returning HTTP 500 to the client and blocking all uploads.
+  - Removed `hash_ok` from the insert payload; returned `{ hash_ok: hashOk }` in the API response.
+- **Background Upload & Swipe Persistence**:
+  - Dedicated `UploadService`: runs in the main process with `FOREGROUND_SERVICE_DATA_SYNC` and a partial `WakeLock` (up to 10 min), keeping CPU awake and draining outbox even if the phone screen turns off or app is backgrounded.
+  - Resilient `drainOutbox()` in `Upload.kt` protected by atomic flag `isDrainingOutbox`, preventing race conditions or SQLite database locks between `UploadService` and `UploadWorker`.
+  - WorkManager expedited compliance: added `getForegroundInfo()` to `UploadWorker` ensuring it can run as an expedited background worker without throwing runtime exceptions.
+  - Fixed-length streaming mode with 64 KB buffers in `Net.kt`, dramatically increasing upload throughput for video segments.
+  - Added `Db.ensurePending()` to recover and re-queue any files lingering in `outbox/`.
+  - Added `onResume()` upload trigger in `MainActivity.kt`.
+- **End-to-End Verification**:
+  - Verified on live connected phone and Supabase: all pending video segments (`1792348057073` seq 0, seq 1, and `1792348524549` seq 0) successfully uploaded to Supabase storage and recorded in the `evidence` table with `hash_ok: true`. Outbox on device verified completely empty.
 
 ## Ready for End-to-End Acceptance Testing (Phase 2)
 1. Run `supabase/schema.sql` on your Supabase project and enable Anonymous Sign-Ins in Auth settings.

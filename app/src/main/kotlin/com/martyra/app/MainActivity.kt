@@ -153,6 +153,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (!showProfile) enqueueUpload(this)
+    }
+
     private fun reqBatteryOpt() {
         val pm = getSystemService(PowerManager::class.java) ?: return
         if (!pm.isIgnoringBatteryOptimizations(packageName)) {

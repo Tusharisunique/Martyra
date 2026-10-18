@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Martyra Admin Viewer</title>
+  <meta name="description" content="Read-only admin viewer for Martyra evidence sessions.">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; connect-src https://msqfpovrcnkebuzawfhf.supabase.co; media-src blob: https://msqfpovrcnkebuzawfhf.supabase.co; img-src https://msqfpovrcnkebuzawfhf.supabase.co">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1 id="logo">Martyra</h1>
+    <button id="btn-signout" hidden>Sign out</button>
+  </header>
+  <main id="app">Loading…</main>
+  <script
+    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"
+    integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK"
+    crossorigin="anonymous"></script>
+  <script src="app.js"></script>
+</body>
+</html>

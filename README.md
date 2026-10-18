@@ -73,3 +73,42 @@ Android App  ──HTTPS──>  API Server (Node/Fastify)  ──(Service Key)�
 - **Transport vs at-rest Encryption:** The cloud copy is stored as standard media files over TLS; device-side encryption protects local phone storage only.
 - **Supabase Free Tier Limits:** Supabase free plan enforces project limits (storage space, 50MB file limit, bandwidth, and inactivity pauses).
 - **Time Trust:** Server and database timestamps represent the trusted receive time; independent anchoring on-chain is introduced in Phase 3.
+
+---
+
+## Phase 3: Admin Viewer (`viewer/`)
+
+A read-only static website that lives entirely in `viewer/`. No build step, no server, no npm, no frameworks. Three files — `index.html`, `style.css`, `app.js` — opened directly in any modern browser (or served with any static server, e.g. `npx serve viewer/`).
+
+### One-time admin setup
+
+1. In the **Supabase Dashboard → Authentication**, create an account with email and password for the admin.
+2. In **SQL Editor**, run `supabase/make_admin.sql` replacing `you@example.com` with that email.
+3. The admin must **sign out and sign back in** to receive a token with the updated role.
+
+### Running the viewer
+
+```bash
+# Quick local static server on port 8080 (port 3000 is used by the API server):
+npx serve -l 8080 viewer/
+# Then open http://localhost:8080 in a browser.
+```
+
+Or simply open `viewer/index.html` in a browser that allows `file://` CSP — Chrome may need `--allow-file-access-from-files`.
+
+### What you can do
+
+| Action | Route |
+|---|---|
+| List all users | `#/` |
+| See a user's sessions | `#/u/<userId>` |
+| Play a session's evidence | `#/s/<userId>/<session>` |
+
+For each video segment the viewer fetches a 300-second signed URL, plays it in the browser, and runs a SHA-256 fingerprint check (`crypto.subtle`) against `row.sha256` stored in Supabase. A green ✓ means the bytes match the server-verified hash; a red ✗ means they differ.
+
+### Security model
+
+- Uses only the **publishable (anon) key** — never the service-role key.
+- All reads go through Supabase **row-level security** (admin role required to see other users' data).
+- No `innerHTML`, `outerHTML`, `eval`, or `document.write` anywhere.
+- Strict CSP: only `self`, the jsDelivr CDN (SRI-pinned), and the Supabase project host are allowed.
