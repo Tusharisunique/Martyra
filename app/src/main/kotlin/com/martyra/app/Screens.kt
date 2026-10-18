@@ -1,205 +1,110 @@
 package com.martyra.app
 
 import android.view.HapticFeedbackConstants
+import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.camera.view.PreviewView
 
-private val White = Color(0xFFFFFFFF)
-private val Black = Color(0xFF000000)
+private val White = Color.White
+private val Black = Color.Black
 private val Dim = White.copy(alpha = 0.4f)
 
 @Composable
 fun ProfileScreen(onContinue: (String) -> Unit, permissionDenied: Boolean) {
     var name by remember { mutableStateOf("") }
-    val trimmed = name.trim()
-    val enabled = trimmed.length in 1..40
-
-    Column(
-        modifier = Modifier.fillMaxSize().background(Black).padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        androidx.compose.ui.graphics.vector.Image(
-            imageVector = androidx.compose.ui.res.vectorResource(R.drawable.logo),
-            contentDescription = "Martyra",
-            modifier = Modifier.size(96.dp),
-            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(White)
-        )
+    val trimmed = name.trim(); val ok = trimmed.length in 1..40
+    val view = LocalView.current
+    Column(Modifier.fillMaxSize().background(Black).padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Box(Modifier.size(96.dp).drawBehind {
+            val cx = size.width / 2; val cy = size.height / 2; val sc = size.width / 271f
+            drawOval(color = White, topLeft = Offset(cx - 42.5f * sc, cy - 36f * sc), size = Size(17f * sc, 22f * sc))
+            drawOval(color = White, topLeft = Offset(cx + 14.5f * sc, cy - 36f * sc), size = Size(17f * sc, 22f * sc))
+            val p = Path().apply {
+                moveTo(cx - 29f * sc, cy + 12f * sc); lineTo(cx, cy + 38f * sc); lineTo(cx + 29f * sc, cy + 12f * sc)
+            }
+            drawPath(p, White, style = Stroke(width = 8f * sc, cap = StrokeCap.Round, join = StrokeJoin.Round))
+        })
         Spacer(Modifier.height(48.dp))
-        BasicTextField(
-            value = name,
-            onValueChange = { if (it.length <= 40) name = it },
+        BasicTextField(name, { if (it.length <= 40) name = it },
             textStyle = TextStyle(color = White, fontSize = 16.sp, textDecoration = TextDecoration.Underline),
             cursorBrush = SolidColor(White),
-            decorationBox = { inner ->
-                Box {
-                    if (name.isEmpty()) BasicText(
-                        "Your name",
-                        style = TextStyle(color = Dim, fontSize = 16.sp, textDecoration = TextDecoration.Underline)
-                    )
-                    inner()
-                }
-            }
-        )
+            decorationBox = { inner -> Box { if (name.isEmpty()) BasicText("Your name", style = TextStyle(color = Dim, fontSize = 16.sp, textDecoration = TextDecoration.Underline)); inner() } })
         Spacer(Modifier.height(16.dp))
-        BasicText(
-            "Camera and microphone are required. Location and notifications are optional.",
-            style = TextStyle(color = Dim, fontSize = 14.sp)
-        )
-        Spacer(Modifier.height(8.dp))
-        if (permissionDenied) BasicText(
-            "Camera and microphone access is required.",
-            style = TextStyle(color = White, fontSize = 14.sp)
-        )
+        BasicText("Camera and microphone are required. Location and notifications are optional.", style = TextStyle(color = Dim, fontSize = 14.sp))
+        if (permissionDenied) { Spacer(Modifier.height(8.dp)); BasicText("Camera and microphone access is required.", style = TextStyle(color = White, fontSize = 16.sp)) }
         Spacer(Modifier.height(32.dp))
-        val view = LocalView.current
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .border(1.dp, if (enabled) White else Dim, RoundedCornerShape(50))
-                .padding(horizontal = 32.dp, vertical = 12.dp)
-                .clickable(
-                    enabled = enabled,
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) {
-                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                    onContinue(trimmed)
-                }
-        ) {
-            BasicText("Continue", style = TextStyle(color = if (enabled) White else Dim, fontSize = 16.sp))
+        Box(Modifier.border(1.dp, if (ok) White else Dim, RoundedCornerShape(50)).padding(horizontal = 32.dp, vertical = 12.dp)
+            .clickable(enabled = ok, indication = null, interactionSource = remember { MutableInteractionSource() }) {
+                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK); onContinue(trimmed)
+            }) {
+            BasicText("Continue", style = TextStyle(color = if (ok) White else Dim, fontSize = 16.sp))
         }
     }
 }
 
 @Composable
-fun MainScreen(
-    rooted: Boolean,
-    recording: Boolean,
-    elapsedMs: Long,
-    onBind: (PreviewView) -> Unit,
-    onStartStop: () -> Unit,
-    onPhoto: () -> Unit
-) {
+fun MainScreen(rooted: Boolean, recording: Boolean, elapsedMs: Long,
+    onBind: (PreviewView) -> Unit, onStartStop: () -> Unit, onPhoto: () -> Unit) {
     var photoMode by remember { mutableStateOf(false) }
     val view = LocalView.current
-
     Box(Modifier.fillMaxSize().background(Black)) {
         if (rooted) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                BasicText(
-                    "This device is not supported.",
-                    style = TextStyle(color = White, fontSize = 16.sp)
-                )
+                BasicText("This device is not supported.", style = TextStyle(color = White, fontSize = 16.sp))
             }
         } else {
-            AndroidView(
-                factory = { ctx ->
-                    PreviewView(ctx).also { pv ->
-                        pv.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                        onBind(pv)
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-
+            AndroidView(factory = { ctx ->
+                PreviewView(ctx).also { it.implementationMode = PreviewView.ImplementationMode.COMPATIBLE; onBind(it) }
+            }, modifier = Modifier.fillMaxSize())
             if (recording) {
-                val secs = elapsedMs / 1000
-                val mm = secs / 60
-                val ss = secs % 60
-                BasicText(
-                    "%02d:%02d".format(mm, ss),
+                val s = elapsedMs / 1000
+                BasicText("%02d:%02d".format(s / 60, s % 60),
                     style = TextStyle(color = White, fontSize = 20.sp),
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 48.dp)
-                )
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 48.dp))
             }
-
-            Column(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                if (!recording) {
-                    androidx.compose.foundation.layout.Row {
-                        BasicText(
-                            "Video",
-                            style = TextStyle(color = if (!photoMode) White else Dim, fontSize = 14.sp),
-                            modifier = Modifier.padding(8.dp).clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) { photoMode = false }
-                        )
-                        BasicText(
-                            "Photo",
-                            style = TextStyle(color = if (photoMode) White else Dim, fontSize = 14.sp),
-                            modifier = Modifier.padding(8.dp).clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) { photoMode = true }
-                        )
-                    }
-                } else {
-                    androidx.compose.foundation.layout.Row {
-                        BasicText("Video", style = TextStyle(color = Dim, fontSize = 14.sp), modifier = Modifier.padding(8.dp))
-                        BasicText("Photo", style = TextStyle(color = Dim, fontSize = 14.sp), modifier = Modifier.padding(8.dp))
-                    }
+            Column(Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Row {
+                    BasicText("Video", style = TextStyle(color = if (!photoMode && !recording) White else Dim, fontSize = 14.sp),
+                        modifier = Modifier.padding(8.dp).clickable(enabled = !recording, indication = null, interactionSource = remember { MutableInteractionSource() }) { photoMode = false })
+                    BasicText("Photo", style = TextStyle(color = if (photoMode && !recording) White else Dim, fontSize = 14.sp),
+                        modifier = Modifier.padding(8.dp).clickable(enabled = !recording, indication = null, interactionSource = remember { MutableInteractionSource() }) { photoMode = true })
                 }
-
                 Spacer(Modifier.height(16.dp))
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(72.dp)
-                        .drawBehind {
-                            drawCircle(White, radius = size.minDimension / 2 - 4.dp.toPx(), style = Stroke(width = 4.dp.toPx()))
-                        }
-                        .clickable(
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() }
-                        ) {
-                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                            if (photoMode) onPhoto() else onStartStop()
-                        }
-                ) {
+                Box(modifier = Modifier.size(72.dp)
+                    .drawBehind { drawCircle(White, size.minDimension / 2 - 4.dp.toPx(), style = Stroke(4.dp.toPx())) }
+                    .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        if (photoMode) onPhoto() else onStartStop()
+                    }, contentAlignment = Alignment.Center) {
                     when {
                         photoMode -> Box(Modifier.size(44.dp).background(White, CircleShape))
-                        recording -> Box(
-                            Modifier.size(28.dp).background(White, RoundedCornerShape(6.dp))
-                        )
+                        recording -> Box(Modifier.size(28.dp).background(White, RoundedCornerShape(6.dp)))
                     }
                 }
             }

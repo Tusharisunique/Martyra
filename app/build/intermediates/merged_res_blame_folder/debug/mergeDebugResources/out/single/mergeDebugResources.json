@@ -1,0 +1,18 @@
+[
+    {
+        "merged": "com.martyra.app-debug-57:/drawable_logo.xml.flat",
+        "source": "com.martyra.app-main-59:/drawable/logo.xml"
+    },
+    {
+        "merged": "com.martyra.app-debug-57:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.martyra.app-main-59:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "com.martyra.app-debug-57:/drawable_ic_notification.xml.flat",
+        "source": "com.martyra.app-main-59:/drawable/ic_notification.xml"
+    },
+    {
+        "merged": "com.martyra.app-debug-57:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.martyra.app-main-59:/mipmap-anydpi-v26/ic_launcher.xml"
+    }
+]

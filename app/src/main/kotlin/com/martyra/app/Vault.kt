@@ -2,7 +2,8 @@ package com.martyra.app
 
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
+import android.security.keystore.KeyProperties.*
+import android.util.Base64
 import java.io.File
 import java.io.InputStream
 import java.io.RandomAccessFile
@@ -11,107 +12,76 @@ import java.security.KeyStore
 import java.security.MessageDigest
 import java.security.SecureRandom
 import javax.crypto.Cipher
+import javax.crypto.CipherInputStream
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-private const val KEY_ALIAS = "martyra_vault"
-private const val PREFS_VAULT = "vault"
-private const val PREF_PASS = "pass"
-private const val IV_LEN = 12
-private const val TAG_LEN = 128
-private const val WIN_SIZE = 1_048_576L // 1 MiB map window
+private const val ALIAS = "martyra_vault"
+private const val WIN = 1_048_576L
 
-private fun keystoreKey(): SecretKey {
+private fun vaultKey(): SecretKey {
     val ks = KeyStore.getInstance("AndroidKeyStore").also { it.load(null) }
-    return (ks.getEntry(KEY_ALIAS, null) as? KeyStore.SecretKeyEntry)?.secretKey
-        ?: KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore").run {
-            init(
-                KeyGenParameterSpec.Builder(KEY_ALIAS,
-                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
-                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .setKeySize(256)
-                    .setUserAuthenticationRequired(false)
-                    .build()
-            )
-            generateKey()
-        }
+    return (ks.getEntry(ALIAS, null) as? KeyStore.SecretKeyEntry)?.secretKey
+        ?: KeyGenerator.getInstance(KEY_ALGORITHM_AES, "AndroidKeyStore").apply {
+            init(KeyGenParameterSpec.Builder(ALIAS, PURPOSE_ENCRYPT or PURPOSE_DECRYPT)
+                .setBlockModes(BLOCK_MODE_GCM).setEncryptionPaddings(ENCRYPTION_PADDING_NONE)
+                .setKeySize(256).setUserAuthenticationRequired(false).build())
+        }.generateKey()
 }
 
 fun dbPassphrase(ctx: Context): ByteArray {
-    val prefs = ctx.getSharedPreferences(PREFS_VAULT, Context.MODE_PRIVATE)
-    val stored = prefs.getString(PREF_PASS, null)
-    if (stored != null) {
-        val raw = android.util.Base64.decode(stored, android.util.Base64.NO_WRAP)
-        val iv = raw.copyOf(IV_LEN)
-        val ct = raw.copyOfRange(IV_LEN, raw.size)
+    val prefs = ctx.getSharedPreferences("vault", Context.MODE_PRIVATE)
+    prefs.getString("pass", null)?.let { s ->
+        val raw = Base64.decode(s, Base64.NO_WRAP)
         val c = Cipher.getInstance("AES/GCM/NoPadding")
-        c.init(Cipher.DECRYPT_MODE, keystoreKey(), GCMParameterSpec(TAG_LEN, iv))
-        return c.doFinal(ct)
+        c.init(Cipher.DECRYPT_MODE, vaultKey(), GCMParameterSpec(128, raw.copyOf(12)))
+        return c.doFinal(raw.copyOfRange(12, raw.size))
     }
     val pass = ByteArray(32).also { SecureRandom().nextBytes(it) }
-    val c = Cipher.getInstance("AES/GCM/NoPadding")
-    c.init(Cipher.ENCRYPT_MODE, keystoreKey())
-    val blob = c.iv + c.doFinal(pass)
-    prefs.edit().putString(PREF_PASS,
-        android.util.Base64.encodeToString(blob, android.util.Base64.NO_WRAP)).apply()
+    val c = Cipher.getInstance("AES/GCM/NoPadding").also { it.init(Cipher.ENCRYPT_MODE, vaultKey()) }
+    prefs.edit().putString("pass", Base64.encodeToString(c.iv + c.doFinal(pass), Base64.NO_WRAP)).apply()
     return pass
 }
 
-fun seal(ctx: Context, raw: File, sessionId: Long, seq: Int, ts: Long, lat: Double?, lon: Double?) {
+fun seal(ctx: Context, raw: File, session: Long, seq: Int, ts: Long, lat: Double?, lon: Double?) {
     val outbox = File(ctx.filesDir, "outbox").also { it.mkdirs() }
     val ext = if (raw.name.endsWith(".jpg")) "jpg" else "mp4"
-    val hash = sha256Mapped(raw)
+    val hash = sha256(raw)
     val latS = lat?.let { "%.6f".format(it) } ?: "na"
     val lonS = lon?.let { "%.6f".format(it) } ?: "na"
-    val name = "${sessionId}_${"${seq}".padStart(4, '0')}_${ts}_${latS}_${lonS}_${hash}.${ext}.enc"
-    val tmp = File(outbox, "$name.tmp")
-    val enc = File(outbox, name)
+    val name = "${session}_${"%04d".format(seq)}_${ts}_${latS}_${lonS}_$hash.$ext.enc"
+    val tmp = File(outbox, "$name.tmp"); val enc = File(outbox, name)
     try {
-        val pass = dbPassphrase(ctx)
         val c = Cipher.getInstance("AES/GCM/NoPadding")
-        c.init(Cipher.ENCRYPT_MODE, SecretKeySpec(pass, "AES"))
-        val iv = c.iv
+        c.init(Cipher.ENCRYPT_MODE, SecretKeySpec(dbPassphrase(ctx), "AES"))
         tmp.outputStream().use { out ->
-            out.write(iv)
-            raw.inputStream().use { src ->
-                c.wrap(src).use { it.copyTo(out) }
-            }
+            out.write(c.iv)
+            CipherInputStream(raw.inputStream(), c).use { it.copyTo(out) }
         }
         RandomAccessFile(tmp, "rw").use { it.fd.sync() }
-        tmp.renameTo(enc)
-        raw.delete()
-    } catch (_: Exception) {
-        tmp.delete()
-        // raw intentionally kept on failure
-    }
+        tmp.renameTo(enc); raw.delete()
+    } catch (_: Exception) { tmp.delete() }
 }
 
 fun open(ctx: Context, enc: File): InputStream {
-    val pass = dbPassphrase(ctx)
-    val raw = enc.inputStream()
-    val iv = ByteArray(IV_LEN).also { raw.read(it) }
+    val s = enc.inputStream(); val iv = ByteArray(12).also { s.read(it) }
     val c = Cipher.getInstance("AES/GCM/NoPadding")
-    c.init(Cipher.DECRYPT_MODE, SecretKeySpec(pass, "AES"), GCMParameterSpec(TAG_LEN, iv))
-    return c.wrap(raw)
+    c.init(Cipher.DECRYPT_MODE, SecretKeySpec(dbPassphrase(ctx), "AES"), GCMParameterSpec(128, iv))
+    return CipherInputStream(s, c)
 }
 
-private fun sha256Mapped(file: File): String {
-    val digest = MessageDigest.getInstance("SHA-256")
-    RandomAccessFile(file, "r").use { raf ->
-        val ch = raf.channel
-        var pos = 0L
-        val size = ch.size()
-        while (pos < size) {
-            val len = minOf(WIN_SIZE, size - pos)
-            val buf = ch.map(FileChannel.MapMode.READ_ONLY, pos, len)
+private fun sha256(f: File): String {
+    val d = MessageDigest.getInstance("SHA-256")
+    RandomAccessFile(f, "r").use { raf ->
+        val ch = raf.channel; var pos = 0L; val sz = ch.size()
+        while (pos < sz) {
+            val len = minOf(WIN, sz - pos)
             val arr = ByteArray(len.toInt())
-            buf.get(arr)
-            digest.update(arr)
-            pos += len
+            ch.map(FileChannel.MapMode.READ_ONLY, pos, len).get(arr)
+            d.update(arr); pos += len
         }
     }
-    return digest.digest().joinToString("") { "%02x".format(it) }
+    return d.digest().joinToString("") { "%02x".format(it) }
 }
