@@ -1,7 +1,13 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+}
+
+val localProps = Properties().also { p ->
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use(p::load)
 }
 
 android {
@@ -14,9 +20,21 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+
+        buildConfigField("String", "SUPABASE_URL",
+            "\"${localProps.getProperty("supabase.url", "")}\"")
+        buildConfigField("String", "SUPABASE_KEY",
+            "\"${localProps.getProperty("supabase.key", "")}\"")
+        // Release SERVER_URL must be supplied via local.properties; debug falls back to localhost.
+        buildConfigField("String", "SERVER_URL",
+            "\"${localProps.getProperty("server.url.release", "")}\"")
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "SERVER_URL",
+                "\"${localProps.getProperty("server.url.debug", "http://localhost:3000")}\"")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -24,8 +42,15 @@ android {
         }
     }
 
+    sourceSets {
+        getByName("debug") {
+            res.srcDirs("src/debug/res")
+        }
+    }
+
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     compileOptions {

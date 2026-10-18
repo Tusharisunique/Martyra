@@ -300,13 +300,9 @@ fun MainScreen(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }
                         ) {
+                            shutterPressed = true
                             view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                            if (photoMode) {
-                                shutterPressed = true
-                                onPhoto()
-                            } else {
-                                onStartStop()
-                            }
+                            if (photoMode) onPhoto() else onStartStop()
                         },
                     contentAlignment = Alignment.Center
                 ) {

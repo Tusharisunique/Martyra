@@ -10,6 +10,10 @@ app/build/
 # Local config
 local.properties
 
+# Server secrets and deps
+server/.env
+server/node_modules/
+
 # IDE
 .idea/
 *.iml

@@ -1,11 +1,14 @@
 package com.martyra.app
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.*
+import android.provider.Settings
 import android.view.Surface
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -14,7 +17,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import java.lang.ref.WeakReference
-import java.util.UUID
 
 private const val PREFS = "profile"
 
@@ -24,6 +26,7 @@ class MainActivity : ComponentActivity() {
     private var recording by mutableStateOf(false)
     private var elapsedMs by mutableLongStateOf(0L)
     private var recordStartRealtime = 0L
+    private var lastClickTime = 0L
     private val ticker = Runnable { tick() }
     private var showProfile by mutableStateOf(false)
     private var permDenied by mutableStateOf(false)
@@ -71,20 +74,14 @@ class MainActivity : ComponentActivity() {
     private val perms = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { r ->
         if (r[Manifest.permission.CAMERA] == true && r[Manifest.permission.RECORD_AUDIO] == true) {
             if (showProfile) {
-                // First-time: save name + user ID, then move to main screen
-                val p = getSharedPreferences(PREFS, MODE_PRIVATE)
-                p.edit()
-                    .putString("name", pendingName)
-                    .putString("user_id", p.getString("user_id", null) ?: UUID.randomUUID().toString())
-                    .apply()
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString("name", pendingName).apply()
                 showProfile = false
             }
             permDenied = false
             if (!isBound) bindSvc()
             enqueueUpload(this)
-        } else {
-            permDenied = true
-        }
+            reqBatteryOpt()
+        } else permDenied = true
     }
 
     override fun onCreate(s: Bundle?) {
@@ -100,6 +97,7 @@ class MainActivity : ComponentActivity() {
             if (camOk && micOk) {
                 bindSvc()
                 enqueueUpload(this)
+                reqBatteryOpt()
             } else {
                 // Silent re-request; showProfile remains false (no name entry needed)
                 reqPerms()
@@ -129,63 +127,69 @@ class MainActivity : ComponentActivity() {
                         sendSurfaceToService(null)
                     },
                     onStartStop = {
-                        if (recording) {
-                            sendToService(MSG_STOP_RECORDING)
-                        } else {
-                            sendToService(MSG_START_RECORDING)
+                        val now = SystemClock.elapsedRealtime()
+                        if (now - lastClickTime >= 500L) {
+                            lastClickTime = now
+                            if (recording) {
+                                recording = false
+                                recordStartRealtime = 0L
+                                elapsedMs = 0L
+                                stopTicker()
+                                sendToService(MSG_STOP_RECORDING)
+                            } else {
+                                sendToService(MSG_START_RECORDING)
+                            }
                         }
                     },
                     onPhoto = {
-                        sendToService(MSG_TAKE_PHOTO)
+                        val now = SystemClock.elapsedRealtime()
+                        if (now - lastClickTime >= 500L) {
+                            lastClickTime = now
+                            sendToService(MSG_TAKE_PHOTO)
+                        }
                     }
                 )
             }
         }
     }
 
+    private fun reqBatteryOpt() {
+        val pm = getSystemService(PowerManager::class.java) ?: return
+        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+            try {
+                @SuppressLint("BatteryLife")
+                startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName")))
+            } catch (_: Exception) {}
+        }
+    }
+
     private fun sendToService(what: Int, reply: Messenger? = null) {
         val target = svcMessenger ?: return
         try {
-            val msg = Message.obtain(null, what)
-            reply?.let { msg.replyTo = it }
-            target.send(msg)
-        } catch (_: RemoteException) {
-            svcMessenger = null
-        }
+            target.send(Message.obtain(null, what).apply { reply?.let { replyTo = it } })
+        } catch (_: RemoteException) { svcMessenger = null }
     }
 
     private fun sendSurfaceToService(surface: Surface?) {
         val target = svcMessenger ?: return
         try {
-            val msg = Message.obtain(null, MSG_SET_SURFACE).apply {
+            target.send(Message.obtain(null, MSG_SET_SURFACE).apply {
                 obj = surface
-                data = Bundle().apply {
-                    putParcelable("surface", surface)
-                }
-            }
-            target.send(msg)
-        } catch (_: RemoteException) {
-            svcMessenger = null
-        }
+                data = Bundle().apply { putParcelable("surface", surface) }
+            })
+        } catch (_: RemoteException) { svcMessenger = null }
     }
 
     private fun reqPerms() {
-        val l = mutableListOf(
-            Manifest.permission.CAMERA,
-            Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        )
-        if (Build.VERSION.SDK_INT >= 33) {
-            l += Manifest.permission.POST_NOTIFICATIONS
-        }
-        perms.launch(l.toTypedArray())
+        val base = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        perms.launch(if (Build.VERSION.SDK_INT >= 33) base + Manifest.permission.POST_NOTIFICATIONS else base)
     }
 
     private fun bindSvc() {
-        val i = Intent(this, CaptureService::class.java)
-        startService(i)
-        bindService(i, conn, BIND_AUTO_CREATE)
+        Intent(this, CaptureService::class.java).also {
+            startService(it)
+            bindService(it, conn, BIND_AUTO_CREATE)
+        }
     }
 
     override fun onStart() {

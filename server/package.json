@@ -1,0 +1,12 @@
+{
+  "name": "martyra-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file=.env server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.49.8",
+    "fastify": "5.3.2"
+  }
+}

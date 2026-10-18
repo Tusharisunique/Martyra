@@ -139,7 +139,7 @@ class CaptureService : LifecycleService() {
         val client = clientMessenger ?: return
         try {
             val msg = Message.obtain(null, MSG_STATE).apply {
-                arg1 = if (recording != null) 1 else 0
+                arg1 = if (sessionId != 0L) 1 else 0
                 data = Bundle().apply { putLong("start_time", recordStartRealtime) }
             }
             client.send(msg)
@@ -147,9 +147,7 @@ class CaptureService : LifecycleService() {
     }
 
     fun startRecording() {
-        if (isRooted() || recording != null) return
-        // Guard: camera must be initialized before we can record
-        if (vc == null) return
+        if (isRooted() || sessionId != 0L || recording != null || vc == null) return
 
         sessionId = System.currentTimeMillis()
         seq = 0
@@ -174,13 +172,14 @@ class CaptureService : LifecycleService() {
             startForeground(NOTIF_ID, n)
         }
         startSegment()
-        // Only notify UI as "recording" after startSegment() starts
         notifyState()
     }
 
     fun stopRecording() {
+        if (sessionId == 0L) return
         stopLoop()
-        if (clientMessenger == null) stopSelf()
+        notifyState()
+        if (clientMessenger == null && recording == null) stopSelf()
     }
 
     @SuppressLint("MissingPermission")
@@ -212,6 +211,7 @@ class CaptureService : LifecycleService() {
 
     @SuppressLint("MissingPermission")
     private fun startSegment() {
+        if (sessionId == 0L) return
         val videoCapture = vc ?: return
         val raw = File(File(filesDir, "raw").also { it.mkdirs() }, "${sessionId}_$seq.mp4")
         try {
@@ -262,11 +262,10 @@ class CaptureService : LifecycleService() {
     }
 
     private fun stopLoop() {
-        val s = sessionId
-        if (s != 0L) lastSessionId = s
+        if (sessionId != 0L) lastSessionId = sessionId
         sessionId = 0L
         recordStartRealtime = 0L
-        if (s != 0L) runCatching { recording?.stop() }
+        runCatching { recording?.stop() }
     }
 
     private fun bindCamera() {
