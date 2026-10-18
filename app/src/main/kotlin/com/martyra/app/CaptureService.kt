@@ -1,6 +1,7 @@
 package com.martyra.app
 
 import android.annotation.SuppressLint
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -72,6 +73,7 @@ class CaptureService : LifecycleService() {
 
     fun stopRecording() { stopLoop(); if (!isBound) stopSelf() }
 
+    @SuppressLint("MissingPermission")
     fun takePhoto() {
         val ts = System.currentTimeMillis()
         val raw = File(File(filesDir, "raw").also { it.mkdirs() }, "${ts}_photo.jpg")
@@ -81,6 +83,7 @@ class CaptureService : LifecycleService() {
         })
     }
 
+    @SuppressLint("MissingPermission")
     private fun startSegment() {
         val raw = File(File(filesDir, "raw").also { it.mkdirs() }, "${sessionId}_$seq.mp4")
         recording = (vc ?: return).output.prepareRecording(this, FileOutputOptions.Builder(raw).setDurationLimitMillis(SEGMENT_MS).build())

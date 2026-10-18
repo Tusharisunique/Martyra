@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<incidents format="6" by="lint 8.7.3" type="conditional_incidents">
+
+    <incident
+        id="InlinedApi"
+        severity="warning"
+        message="">
+        <fix-data minSdk="fffffffff0000000" requiresApi="ffffffffe0000000"/>
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*javaDir*2}/com/martyra/app/CaptureService.kt"
+            line="69"
+            column="71"
+            startOffset="3058"
+            endLine="69"
+            endColumn="113"
+            endOffset="3100"/>
+        <map>
+            <entry
+                name="message"
+                string="Field requires API level 30 (current min is %1$s): `android.content.pm.ServiceInfo#FOREGROUND_SERVICE_TYPE_CAMERA`"/>
+            <api-levels id="minSdk"
+                value="fffffffff0000000"/>
+            <entry
+                name="name"
+                string="FOREGROUND_SERVICE_TYPE_CAMERA"/>
+            <entry
+                name="owner"
+                string="android.content.pm.ServiceInfo"/>
+            <api-levels id="requiresApi"
+                value="ffffffffe0000000"/>
+        </map>
+    </incident>
+
+    <incident
+        id="InlinedApi"
+        severity="warning"
+        message="">
+        <fix-data minSdk="fffffffff0000000" requiresApi="ffffffffe0000000"/>
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*javaDir*2}/com/martyra/app/CaptureService.kt"
+            line="69"
+            column="117"
+            startOffset="3104"
+            endLine="69"
+            endColumn="163"
+            endOffset="3150"/>
+        <map>
+            <entry
+                name="message"
+                string="Field requires API level 30 (current min is %1$s): `android.content.pm.ServiceInfo#FOREGROUND_SERVICE_TYPE_MICROPHONE`"/>
+            <api-levels id="minSdk"
+                value="fffffffff0000000"/>
+            <entry
+                name="name"
+                string="FOREGROUND_SERVICE_TYPE_MICROPHONE"/>
+            <entry
+                name="owner"
+                string="android.content.pm.ServiceInfo"/>
+            <api-levels id="requiresApi"
+                value="ffffffffe0000000"/>
+        </map>
+    </incident>
+
+    <incident
+        id="NewApi"
+        severity="error"
+        message="">
+        <fix-data minSdk="fffffffffe000000" requiresApi="fffffffffc000000"/>
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*resDir*0}/values/themes.xml"
+            line="7"
+            column="15"
+            startOffset="383"
+            endLine="7"
+            endColumn="54"
+            endOffset="422"/>
+        <map>
+            <entry
+                name="message"
+                string="`android:windowLightNavigationBar` requires API level 27 (current min is %1$s)"/>
+            <api-levels id="minSdk"
+                value="fffffffffe000000"/>
+            <api-levels id="requiresApi"
+                value="fffffffffc000000"/>
+        </map>
+    </incident>
+
+    <incident
+        id="LockedOrientationActivity"
+        severity="warning"
+        message="Expecting `android:screenOrientation=&quot;unspecified&quot;` or `&quot;fullSensor&quot;` for this activity so the user can use the application in any orientation and provide a great experience on Chrome OS devices">
+        <fix-attribute
+            description="Set screenOrientation=&quot;fullSensor&quot;"
+            robot="true"
+            independent="true"
+            namespace="http://schemas.android.com/apk/res/android"
+            attribute="screenOrientation"
+            value="fullSensor"/>
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*manifest*0}"
+            line="26"
+            column="13"
+            startOffset="1286"
+            endLine="26"
+            endColumn="49"
+            endOffset="1322"/>
+        <map>
+            <condition library="false"/>
+        </map>
+    </incident>
+
+    <incident
+        id="PermissionImpliesUnsupportedChromeOsHardware"
+        severity="error"
+        message="Permission exists without corresponding hardware `&lt;uses-feature android:name=&quot;android.hardware.camera&quot; required=&quot;false&quot;>` tag">
+        <fix-data featureName="android.hardware.camera"/>
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*manifest*0}"
+            line="4"
+            column="6"
+            startOffset="115"
+            endLine="4"
+            endColumn="21"
+            endOffset="130"/>
+        <map>
+            <condition library="false"/>
+        </map>
+    </incident>
+
+</incidents>

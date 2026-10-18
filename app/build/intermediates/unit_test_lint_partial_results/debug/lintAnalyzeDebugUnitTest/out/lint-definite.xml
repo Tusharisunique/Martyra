@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<incidents format="6" by="lint 8.7.3" type="incidents">
+
+    <incident
+        id="AndroidGradlePluginVersion"
+        severity="warning"
+        message="A newer version of com.android.application than 8.7.3 is available: 9.4.1">
+        <fix-replace
+            description="Change to 9.4.1"
+            family="Update versions"
+            oldString="8.7.3"
+            replacement="9.4.1"
+            priority="0"/>
+        <location
+            file="$HOME/AndroidStudioProjects/Martyra/gradle/libs.versions.toml"
+            line="2"
+            column="7"
+            startOffset="17"
+            endLine="2"
+            endColumn="14"
+            endOffset="24"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of org.jetbrains.kotlin.android than 2.0.21 is available: 2.1.0">
+        <fix-replace
+            description="Change to 2.1.0"
+            family="Update versions"
+            oldString="2.0.21"
+            replacement="2.1.0"
+            priority="0"/>
+        <location
+            file="$HOME/AndroidStudioProjects/Martyra/gradle/libs.versions.toml"
+            line="3"
+            column="10"
+            startOffset="34"
+            endLine="3"
+            endColumn="18"
+            endOffset="42"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of org.jetbrains.kotlin.plugin.compose than 2.0.21 is available: 2.1.0">
+        <fix-replace
+            description="Change to 2.1.0"
+            family="Update versions"
+            oldString="2.0.21"
+            replacement="2.1.0"
+            priority="0"/>
+        <location
+            file="$HOME/AndroidStudioProjects/Martyra/gradle/libs.versions.toml"
+            line="3"
+            column="10"
+            startOffset="34"
+            endLine="3"
+            endColumn="18"
+            endOffset="42"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.compose:compose-bom than 2024.12.01 is available: 2026.09.00">
+        <fix-replace
+            description="Change to 2026.09.00"
+            family="Update versions"
+            oldString="2024.12.01"
+            replacement="2026.09.00"
+            priority="0"/>
+        <location
+            file="$HOME/AndroidStudioProjects/Martyra/gradle/libs.versions.toml"
+            line="4"
+            column="14"
+            startOffset="56"
+            endLine="4"
+            endColumn="26"
+            endOffset="68"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.activity:activity-compose than 1.9.3 is available: 1.13.0">
+        <fix-replace
+            description="Change to 1.13.0"
+            family="Update versions"
+            oldString="1.9.3"
+            replacement="1.13.0"
+            priority="0"/>
+        <location
+            file="$HOME/AndroidStudioProjects/Martyra/gradle/libs.versions.toml"
+            line="5"
+            column="19"
+            startOffset="87"
+            endLine="5"
+            endColumn="26"
+            endOffset="94"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.camera:camera-camera2 than 1.4.1 is available: 1.6.2">
+        <fix-replace
+            description="Change to 1.6.2"
+            family="Update versions"
+            oldString="1.4.1"
+            replacement="1.6.2"
+            priority="0"/>
+        <location
+            file="$HOME/AndroidStudioProjects/Martyra/gradle/libs.versions.toml"
+            line="6"
+            column="11"
+            startOffset="105"
+            endLine="6"
+            endColumn="18"
+            endOffset="112"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.camera:camera-core than 1.4.1 is available: 1.6.2">
+        <fix-replace
+            description="Change to 1.6.2"
+            family="Update versions"
+            oldString="1.4.1"
+            replacement="1.6.2"
+            priority="0"/>
+        <location
+            file="$HOME/AndroidStudioProjects/Martyra/gradle/libs.versions.toml"
+            line="6"
+            column="11"
+            startOffset="105"
+            endLine="6"
+            endColumn="18"
+            endOffset="112"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.camera:camera-lifecycle than 1.4.1 is available: 1.6.2">
+        <fix-replace
+            description="Change to 1.6.2"
+            family="Update versions"
+            oldString="1.4.1"
+            replacement="1.6.2"
+            priority="0"/>
+        <location
+            file="$HOME/AndroidStudioProjects/Martyra/gradle/libs.versions.toml"
+            line="6"
+            column="11"
+            startOffset="105"
+            endLine="6"
+            endColumn="18"
+            endOffset="112"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.camera:camera-video than 1.4.1 is available: 1.6.2">
+        <fix-replace
+            description="Change to 1.6.2"
+            family="Update versions"
+            oldString="1.4.1"
+            replacement="1.6.2"
+            priority="0"/>
+        <location
+            file="$HOME/AndroidStudioProjects/Martyra/gradle/libs.versions.toml"
+            line="6"
+            column="11"
+            startOffset="105"
+            endLine="6"
+            endColumn="18"
+            endOffset="112"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.camera:camera-view than 1.4.1 is available: 1.6.2">
+        <fix-replace
+            description="Change to 1.6.2"
+            family="Update versions"
+            oldString="1.4.1"
+            replacement="1.6.2"
+            priority="0"/>
+        <location
+            file="$HOME/AndroidStudioProjects/Martyra/gradle/libs.versions.toml"
+            line="6"
+            column="11"
+            startOffset="105"
+            endLine="6"
+            endColumn="18"
+            endOffset="112"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.lifecycle:lifecycle-service than 2.8.7 is available: 2.11.0">
+        <fix-replace
+            description="Change to 2.11.0"
+            family="Update versions"
+            oldString="2.8.7"
+            replacement="2.11.0"
+            priority="0"/>
+        <location
+            file="$HOME/AndroidStudioProjects/Martyra/gradle/libs.versions.toml"
+            line="7"
+            column="20"
+            startOffset="132"
+            endLine="7"
+            endColumn="27"
+            endOffset="139"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.work:work-runtime-ktx than 2.10.1 is available: 2.12.0">
+        <fix-replace
+            description="Change to 2.12.0"
+            family="Update versions"
+            oldString="2.10.1"
+            replacement="2.12.0"
+            priority="0"/>
+        <location
+            file="$HOME/AndroidStudioProjects/Martyra/gradle/libs.versions.toml"
+            line="8"
+            column="15"
+            startOffset="154"
+            endLine="8"
+            endColumn="23"
+            endOffset="162"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.sqlite:sqlite than 2.4.0 is available: 2.7.1">
+        <fix-replace
+            description="Change to 2.7.1"
+            family="Update versions"
+            oldString="2.4.0"
+            replacement="2.7.1"
+            priority="0"/>
+        <location
+            file="$HOME/AndroidStudioProjects/Martyra/gradle/libs.versions.toml"
+            line="10"
+            column="18"
+            startOffset="200"
+            endLine="10"
+            endColumn="25"
+            endOffset="207"/>
+    </incident>
+
+</incidents>

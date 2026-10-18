@@ -1,0 +1,18 @@
+<lint-module
+    format="1"
+    dir="/Users/tusharjoshi/AndroidStudioProjects/Martyra/app"
+    name=":app"
+    type="APP"
+    maven="Martyra:app:unspecified"
+    agpVersion="8.7.3"
+    buildFolder="build"
+    bootClassPath="/Users/tusharjoshi/Library/Android/sdk/platforms/android-35/android.jar:/Users/tusharjoshi/Library/Android/sdk/build-tools/34.0.0/core-lambda-stubs.jar"
+    javaSourceLevel="17"
+    compileTarget="android-35">
+  <lintOptions
+      abortOnError="true"
+      absolutePaths="true"
+      checkReleaseBuilds="true"
+      explainIssues="true"/>
+  <variant name="debug"/>
+</lint-module>

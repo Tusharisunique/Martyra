@@ -1,6 +1,0 @@
-/Users/tusharjoshi/AndroidStudioProjects/Martyra/app/src/main/kotlin/com/martyra/app/Db.kt
-/Users/tusharjoshi/AndroidStudioProjects/Martyra/app/src/main/kotlin/com/martyra/app/MainActivity.kt
-/Users/tusharjoshi/AndroidStudioProjects/Martyra/app/src/main/kotlin/com/martyra/app/Vault.kt
-/Users/tusharjoshi/AndroidStudioProjects/Martyra/app/src/main/kotlin/com/martyra/app/Upload.kt
-/Users/tusharjoshi/AndroidStudioProjects/Martyra/app/src/main/kotlin/com/martyra/app/CaptureService.kt
-/Users/tusharjoshi/AndroidStudioProjects/Martyra/app/src/main/kotlin/com/martyra/app/Screens.kt
