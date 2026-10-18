@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.os.SystemClock
+import android.view.Surface
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -29,26 +30,33 @@ private const val KEY_USER_ID = "user_id"
 class MainActivity : ComponentActivity() {
 
     private var service: CaptureService? = null
-    private var isRecording by mutableStateOf(false)
+    private var recording by mutableStateOf(false)
     private var elapsedMs by mutableLongStateOf(0L)
     private var recordStart = 0L
     private val ticker = Runnable { tick() }
-    private var previewView: PreviewView? = null
+    private var showProfile by mutableStateOf(false)
     private var permissionDenied by mutableStateOf(false)
+    private var pendingName = ""
 
     private val conn = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName, binder: IBinder) {
-            service = (binder as CaptureService.Cap).service()
-            previewView?.let { service?.setPreviewSurface(it.holder?.surface) }
+        override fun onServiceConnected(n: ComponentName, b: IBinder) {
+            service = (b as CaptureService.Cap).service()
+            attachPreviewSurface()
         }
-        override fun onServiceDisconnected(name: ComponentName) { service = null }
+        override fun onServiceDisconnected(n: ComponentName) { service = null }
     }
 
-    private val perms = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
-        val hasCamera = result[Manifest.permission.CAMERA] == true
-        val hasMic = result[Manifest.permission.RECORD_AUDIO] == true
-        if (hasCamera && hasMic) {
-            saveProfile()
+    private val permLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        val cam = result[Manifest.permission.CAMERA] == true
+        val mic = result[Manifest.permission.RECORD_AUDIO] == true
+        if (cam && mic) {
+            val prefs = getSharedPreferences(PREFS_PROFILE, MODE_PRIVATE)
+            prefs.edit()
+                .putString(KEY_NAME, pendingName)
+                .putString(KEY_USER_ID, prefs.getString(KEY_USER_ID, null) ?: UUID.randomUUID().toString())
+                .apply()
+            showProfile = false
+            bindCapture()
         } else {
             permissionDenied = true
         }
@@ -58,37 +66,39 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        enqueueUpload(this)
 
         val prefs = getSharedPreferences(PREFS_PROFILE, MODE_PRIVATE)
-        var showProfile by mutableStateOf(prefs.getString(KEY_NAME, null) == null)
+        showProfile = prefs.getString(KEY_NAME, null) == null
 
-        if (!showProfile) bindCapture()
+        if (!showProfile) {
+            bindCapture()
+            enqueueUpload(this)
+        }
 
         setContent {
             if (showProfile) {
                 ProfileScreen(
-                    onContinue = { _ -> requestPerms() },
+                    onContinue = { name ->
+                        pendingName = name
+                        requestPerms()
+                    },
                     permissionDenied = permissionDenied
                 )
             } else {
                 MainScreen(
                     rooted = isRooted(),
-                    recording = isRecording,
+                    recording = recording,
                     elapsedMs = elapsedMs,
-                    onBind = { pv ->
-                        previewView = pv
-                        service?.setPreviewSurface(pv.holder?.surface)
-                    },
+                    onBind = { pv -> attachPreviewTo(pv) },
                     onStartStop = {
                         val svc = service ?: return@MainScreen
-                        if (isRecording) {
+                        if (recording) {
                             svc.stopRecording()
-                            isRecording = false
+                            recording = false
                             stopTicker()
                         } else {
                             svc.startRecording()
-                            isRecording = true
+                            recording = true
                             recordStart = SystemClock.elapsedRealtime()
                             startTicker()
                         }
@@ -96,38 +106,30 @@ class MainActivity : ComponentActivity() {
                     onPhoto = { service?.takePhoto() }
                 )
             }
-
-            if (showProfile.not()) {
-                // already handled
-            }
         }
+    }
 
-        if (!showProfile) {
-            // already bound above
-        }
+    private var currentPreviewView: PreviewView? = null
 
-        fun onProfileSaved() {
-            showProfile = false
-            bindCapture()
+    private fun attachPreviewTo(pv: PreviewView) {
+        currentPreviewView = pv
+        attachPreviewSurface()
+    }
+
+    private fun attachPreviewSurface() {
+        val pv = currentPreviewView ?: return
+        val svc = service ?: return
+        pv.post {
+            val s: Surface? = pv.holder?.surface
+            svc.setPreviewSurface(s)
         }
     }
 
     private fun requestPerms() {
-        val required = mutableListOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
-        required += Manifest.permission.ACCESS_FINE_LOCATION
-        required += Manifest.permission.ACCESS_COARSE_LOCATION
-        if (Build.VERSION.SDK_INT >= 33) required += Manifest.permission.POST_NOTIFICATIONS
-        perms.launch(required.toTypedArray())
-    }
-
-    private fun saveProfile() {
-        val prefs = getSharedPreferences(PREFS_PROFILE, MODE_PRIVATE)
-        if (prefs.getString(KEY_USER_ID, null) == null) {
-            prefs.edit()
-                .putString(KEY_USER_ID, UUID.randomUUID().toString())
-                .apply()
-        }
-        recreate()
+        val list = mutableListOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        if (Build.VERSION.SDK_INT >= 33) list += Manifest.permission.POST_NOTIFICATIONS
+        permLauncher.launch(list.toTypedArray())
     }
 
     private fun bindCapture() {
@@ -138,7 +140,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        previewView?.let { service?.setPreviewSurface(it.holder?.surface) }
+        attachPreviewSurface()
     }
 
     override fun onStop() {
@@ -152,18 +154,14 @@ class MainActivity : ComponentActivity() {
         runCatching { unbindService(conn) }
     }
 
-    private fun startTicker() {
-        window.decorView.postDelayed(ticker, 500)
-    }
+    private fun startTicker() { window.decorView.postDelayed(ticker, 500) }
 
     private fun tick() {
-        if (isRecording) {
+        if (recording) {
             elapsedMs = SystemClock.elapsedRealtime() - recordStart
             window.decorView.postDelayed(ticker, 500)
         }
     }
 
-    private fun stopTicker() {
-        window.decorView.removeCallbacks(ticker)
-    }
+    private fun stopTicker() { window.decorView.removeCallbacks(ticker) }
 }

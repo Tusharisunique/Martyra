@@ -1,9 +1,8 @@
 [versions]
 agp = "8.7.3"
-kotlin = "2.1.0"
-coreKtx = "1.15.0"
-composeBom = "2026.09.00"
-activityCompose = "1.10.1"
+kotlin = "2.0.21"
+composeBom = "2024.12.01"
+activityCompose = "1.9.3"
 camerax = "1.4.1"
 lifecycleService = "2.8.7"
 workManager = "2.10.1"
