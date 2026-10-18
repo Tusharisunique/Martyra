@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Martyra</string>
+    <string name="recording">Recording</string>
+    <string name="ch_id">martyra_capture</string>
+</resources>
