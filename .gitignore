@@ -28,8 +28,14 @@ server/node_modules/
 # Design assets (kept locally, not in repo)
 design/
 
-# Docs (managed locally)
-AGENTS.md
-final_flow.md
-PRD.md
-PROGRESS.md
+# Gradle wrapper
+gradle/
+gradlew
+gradlew.bat
+
+# Docs (managed locally, kept off repo)
+AGENTS*.md
+final_flow*.md
+PRD*.md
+PROGRESS*.md
+
