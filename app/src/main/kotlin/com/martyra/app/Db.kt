@@ -25,6 +25,12 @@ data class Evidence(
 )
 
 class Db(ctx: Context) {
+    companion object {
+        init {
+            System.loadLibrary("sqlcipher")
+        }
+    }
+
     private val db: SQLiteDatabase
 
     init {

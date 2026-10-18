@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.pm.PackageManager
 import android.os.*
 import android.view.Surface
 import android.view.WindowManager
@@ -69,13 +70,17 @@ class MainActivity : ComponentActivity() {
 
     private val perms = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { r ->
         if (r[Manifest.permission.CAMERA] == true && r[Manifest.permission.RECORD_AUDIO] == true) {
-            val p = getSharedPreferences(PREFS, MODE_PRIVATE)
-            p.edit()
-                .putString("name", pendingName)
-                .putString("user_id", p.getString("user_id", null) ?: UUID.randomUUID().toString())
-                .apply()
-            showProfile = false
-            bindSvc()
+            if (showProfile) {
+                // First-time: save name + user ID, then move to main screen
+                val p = getSharedPreferences(PREFS, MODE_PRIVATE)
+                p.edit()
+                    .putString("name", pendingName)
+                    .putString("user_id", p.getString("user_id", null) ?: UUID.randomUUID().toString())
+                    .apply()
+                showProfile = false
+            }
+            permDenied = false
+            if (!isBound) bindSvc()
             enqueueUpload(this)
         } else {
             permDenied = true
@@ -89,8 +94,16 @@ class MainActivity : ComponentActivity() {
 
         showProfile = getSharedPreferences(PREFS, MODE_PRIVATE).getString("name", null) == null
         if (!showProfile) {
-            bindSvc()
-            enqueueUpload(this)
+            // Re-check permissions on every launch — handles "only this time" revocation
+            val camOk = checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+            val micOk = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            if (camOk && micOk) {
+                bindSvc()
+                enqueueUpload(this)
+            } else {
+                // Silent re-request; showProfile remains false (no name entry needed)
+                reqPerms()
+            }
         }
 
         setContent {

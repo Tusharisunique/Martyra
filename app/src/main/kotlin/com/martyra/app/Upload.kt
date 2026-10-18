@@ -25,6 +25,7 @@ class LocalUploader(ctx: Context) : Uploader {
             }
             true
         } catch (e: Exception) {
+            android.util.Log.e("UploadWorker", "LocalUploader failed for ${meta.file}", e)
             dest.delete()
             false
         }
@@ -32,7 +33,7 @@ class LocalUploader(ctx: Context) : Uploader {
 }
 
 class UploadWorker(ctx: Context, p: WorkerParameters) : CoroutineWorker(ctx, p) {
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = try {
         val db = Db(applicationContext)
         val outbox = File(applicationContext.filesDir, "outbox")
         val uploader = LocalUploader(applicationContext)
@@ -59,13 +60,18 @@ class UploadWorker(ctx: Context, p: WorkerParameters) : CoroutineWorker(ctx, p) 
                     db.setStatus(ev.file, UPLOADED)
                     f.delete()
                 } else {
+                    android.util.Log.w("UploadWorker", "upload returned false for ${ev.file}")
                     retry = true
                 }
             } catch (e: Exception) {
+                android.util.Log.e("UploadWorker", "exception in loop for ${ev.file}", e)
                 retry = true
             }
         }
-        return if (retry) Result.retry() else Result.success()
+        if (retry) Result.retry() else Result.success()
+    } catch (e: Throwable) {
+        android.util.Log.e("UploadWorker", "Error processing uploads", e)
+        Result.retry()
     }
 }
 

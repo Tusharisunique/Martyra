@@ -46,6 +46,7 @@ class CaptureService : LifecycleService() {
     private var imageCapture: ImageCapture? = null
     private var recording: Recording? = null
     private var sessionId = 0L
+    private var lastSessionId = 0L
     private var seq = 0
     private var recordStartRealtime = 0L
 
@@ -94,8 +95,7 @@ class CaptureService : LifecycleService() {
             try {
                 provider = future.get()
                 bindCamera()
-            } catch (_: Exception) {
-            }
+            } catch (_: Exception) { }
         }, ContextCompat.getMainExecutor(this))
     }
 
@@ -137,25 +137,23 @@ class CaptureService : LifecycleService() {
         try {
             val msg = Message.obtain(null, MSG_STATE).apply {
                 arg1 = if (recording != null) 1 else 0
-                data = Bundle().apply {
-                    putLong("start_time", recordStartRealtime)
-                }
+                data = Bundle().apply { putLong("start_time", recordStartRealtime) }
             }
             client.send(msg)
-        } catch (_: RemoteException) {
-            clientMessenger = null
-        }
+        } catch (_: RemoteException) { clientMessenger = null }
     }
 
     fun startRecording() {
         if (isRooted() || recording != null) return
+        // Guard: camera must be initialized before we can record
+        if (vc == null) return
+
         sessionId = System.currentTimeMillis()
         seq = 0
         recordStartRealtime = SystemClock.elapsedRealtime()
 
         val hasLoc = ContextCompat.checkSelfPermission(
-            this,
-            android.Manifest.permission.ACCESS_FINE_LOCATION
+            this, android.Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
         val n = Notification.Builder(this, CH_ID)
@@ -165,14 +163,16 @@ class CaptureService : LifecycleService() {
             .build()
 
         if (Build.VERSION.SDK_INT >= 30) {
-            var fType = ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+            var fType = ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA or
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
             if (hasLoc) fType = fType or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
             startForeground(NOTIF_ID, n, fType)
         } else {
             startForeground(NOTIF_ID, n)
         }
-        notifyState()
         startSegment()
+        // Only notify UI as "recording" after startSegment() starts
+        notifyState()
     }
 
     fun stopRecording() {
@@ -182,74 +182,58 @@ class CaptureService : LifecycleService() {
 
     @SuppressLint("MissingPermission")
     fun takePhoto() {
-        val p = provider ?: return
         val img = imageCapture ?: return
         val ts = System.currentTimeMillis()
         val raw = File(File(filesDir, "raw").also { it.mkdirs() }, "${ts}_photo.jpg")
-
-        val captureCallback = object : ImageCapture.OnImageSavedCallback {
-            override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                if (raw.length() > 0) {
-                    val loc = lastLocation()
-                    seal(applicationContext, raw, ts, 0, ts, loc?.latitude, loc?.longitude)
-                    sendBroadcast(Intent(applicationContext, UploadReceiver::class.java).setAction(ACTION_SEALED))
-                } else {
-                    raw.delete()
+        img.takePicture(
+            ImageCapture.OutputFileOptions.Builder(raw).build(),
+            exec,
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onImageSaved(results: ImageCapture.OutputFileResults) {
+                    if (raw.length() > 0) {
+                        val loc = lastLocation()
+                        seal(applicationContext, raw, ts, 0, ts, loc?.latitude, loc?.longitude)
+                        notifySealedToMainProcess()
+                    } else raw.delete()
                 }
+                override fun onError(e: ImageCaptureException) { raw.delete() }
             }
-
-            override fun onError(exception: ImageCaptureException) {
-                raw.delete()
-            }
-        }
-
-        if (p.isBound(img)) {
-            img.takePicture(ImageCapture.OutputFileOptions.Builder(raw).build(), exec, captureCallback)
-        } else {
-            try {
-                vc?.let { p.unbind(it) }
-                p.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, img)
-                img.takePicture(
-                    ImageCapture.OutputFileOptions.Builder(raw).build(),
-                    exec,
-                    object : ImageCapture.OnImageSavedCallback {
-                        override fun onImageSaved(results: ImageCapture.OutputFileResults) {
-                            captureCallback.onImageSaved(results)
-                            rebindVideo(p, img)
-                        }
-                        override fun onError(e: ImageCaptureException) {
-                            captureCallback.onError(e)
-                            rebindVideo(p, img)
-                        }
-                    }
-                )
-            } catch (_: Exception) {
-                raw.delete()
-                rebindVideo(p, img)
-            }
-        }
+        )
     }
 
-    private fun rebindVideo(p: ProcessCameraProvider, img: ImageCapture) {
-        ContextCompat.getMainExecutor(this).execute {
-            try {
-                p.unbind(img)
-                vc?.let { p.bindToLifecycle(this@CaptureService, CameraSelector.DEFAULT_BACK_CAMERA, it) }
-            } catch (_: Exception) {
-            }
-        }
+    private fun notifySealedToMainProcess() {
+        sendBroadcast(Intent(ACTION_SEALED).apply {
+            setClassName(packageName, UploadReceiver::class.java.name)
+        })
     }
 
     @SuppressLint("MissingPermission")
     private fun startSegment() {
-        val raw = File(File(filesDir, "raw").also { it.mkdirs() }, "${sessionId}_$seq.mp4")
         val videoCapture = vc ?: return
+        val raw = File(File(filesDir, "raw").also { it.mkdirs() }, "${sessionId}_$seq.mp4")
         try {
             recording = videoCapture.output
-                .prepareRecording(this, FileOutputOptions.Builder(raw).setDurationLimitMillis(SEGMENT_MS).build())
+                .prepareRecording(
+                    this,
+                    FileOutputOptions.Builder(raw).setDurationLimitMillis(SEGMENT_MS).build()
+                )
                 .withAudioEnabled()
                 .start(exec) { event ->
-                    if (event is VideoRecordEvent.Finalize) onFinalize(raw)
+                    if (event is VideoRecordEvent.Finalize) {
+                        val ok = event.error == VideoRecordEvent.Finalize.ERROR_NONE ||
+                                 event.error == VideoRecordEvent.Finalize.ERROR_DURATION_LIMIT_REACHED
+                        if (ok && raw.exists() && raw.length() > 0) {
+                            onFinalize(raw)
+                        } else {
+                            raw.delete()
+                            recording = null
+                            if (sessionId != 0L) ContextCompat.getMainExecutor(this).execute { startSegment() }
+                            else {
+                                stopForeground(STOP_FOREGROUND_REMOVE)
+                                notifyState()
+                            }
+                        }
+                    }
                 }
         } catch (_: Exception) {
             raw.delete()
@@ -258,17 +242,15 @@ class CaptureService : LifecycleService() {
 
     private fun onFinalize(raw: File) {
         recording = null
-        val going = sessionId != 0L
-        if (raw.exists() && raw.length() > 0) {
-            val loc = lastLocation()
-            val s = seq++
-            seal(applicationContext, raw, sessionId, s, System.currentTimeMillis(), loc?.latitude, loc?.longitude)
-            sendBroadcast(Intent(applicationContext, UploadReceiver::class.java).setAction(ACTION_SEALED))
-        } else {
-            raw.delete()
-        }
+        val sid = sessionId
+        val going = sid != 0L
+        val loc = lastLocation()
+        val s = seq++
+        val finalSid = if (sid != 0L) sid else lastSessionId
+        seal(applicationContext, raw, finalSid, s, System.currentTimeMillis(), loc?.latitude, loc?.longitude)
+        notifySealedToMainProcess()
         if (going) {
-            startSegment()
+            ContextCompat.getMainExecutor(this).execute { startSegment() }
         } else {
             stopForeground(STOP_FOREGROUND_REMOVE)
             notifyState()
@@ -278,14 +260,10 @@ class CaptureService : LifecycleService() {
 
     private fun stopLoop() {
         val s = sessionId
+        if (s != 0L) lastSessionId = s
         sessionId = 0L
         recordStartRealtime = 0L
-        if (s != 0L) {
-            try {
-                recording?.stop()
-            } catch (_: Exception) {
-            }
-        }
+        if (s != 0L) runCatching { recording?.stop() }
     }
 
     private fun bindCamera() {
@@ -304,17 +282,18 @@ class CaptureService : LifecycleService() {
                 }
             }
         }
-        imageCapture = ImageCapture.Builder().build()
-
+        imageCapture = ImageCapture.Builder()
+            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+            .build()
         try {
             p.unbindAll()
             p.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, vc, imageCapture)
         } catch (_: Exception) {
+            imageCapture = null
             try {
                 p.unbindAll()
                 p.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, vc)
-            } catch (_: Exception) {
-            }
+            } catch (_: Exception) { }
         }
     }
 
@@ -333,12 +312,8 @@ class CaptureService : LifecycleService() {
                 val t = System.currentTimeMillis()
                 seal(applicationContext, f, t, 0, t, null, null)
                 sealed = true
-            } else {
-                f.delete()
-            }
+            } else f.delete()
         }
-        if (sealed) {
-            sendBroadcast(Intent(applicationContext, UploadReceiver::class.java).setAction(ACTION_SEALED))
-        }
+        if (sealed) notifySealedToMainProcess()
     }
 }
