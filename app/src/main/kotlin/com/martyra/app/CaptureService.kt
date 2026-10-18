@@ -11,11 +11,14 @@ import android.location.Location
 import android.location.LocationManager
 import android.os.*
 import android.view.Surface
+import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.core.SurfaceRequest
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
+import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.*
 import androidx.core.content.ContextCompat
@@ -268,21 +271,34 @@ class CaptureService : LifecycleService() {
 
     private fun bindCamera() {
         val p = provider ?: return
+        val res = ResolutionSelector.Builder()
+            .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
+            .build()
         val rec = Recorder.Builder()
-            .setQualitySelector(QualitySelector.fromOrderedList(listOf(Quality.HD, Quality.SD)))
+            .setQualitySelector(
+                QualitySelector.fromOrderedList(
+                    listOf(Quality.HD, Quality.FHD),
+                    FallbackStrategy.lowerQualityOrHigherThan(Quality.HD)
+                )
+            )
+            .setAspectRatio(AspectRatio.RATIO_16_9)
             .build()
         vc = VideoCapture.withOutput(rec)
-        preview = Preview.Builder().build().also { pr ->
-            pr.setSurfaceProvider(ContextCompat.getMainExecutor(this)) { request ->
-                val s = currentSurface
-                if (s != null && s.isValid) {
-                    request.provideSurface(s, ContextCompat.getMainExecutor(this)) { }
-                } else {
-                    pendingSurfaceRequest = request
+        preview = Preview.Builder()
+            .setResolutionSelector(res)
+            .build()
+            .also { pr ->
+                pr.setSurfaceProvider(ContextCompat.getMainExecutor(this)) { request ->
+                    val s = currentSurface
+                    if (s != null && s.isValid) {
+                        request.provideSurface(s, ContextCompat.getMainExecutor(this)) { }
+                    } else {
+                        pendingSurfaceRequest = request
+                    }
                 }
             }
-        }
         imageCapture = ImageCapture.Builder()
+            .setResolutionSelector(res)
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
             .build()
         try {

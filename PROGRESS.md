@@ -13,6 +13,8 @@
   - **Red shutter button while recording**: Shutter ring and inner indicator change to solid red when video recording is active, returning to white when idle.
   - **Photo shutter animation**: Added a spring-driven scale bounce on tap in photo mode for clear capture feedback.
   - **Permission re-check ("Only this time" support)**: App now verifies camera and microphone permissions on every launch before binding `CaptureService`, re-prompting the user if "only this time" permission expired, without clearing the stored user profile.
+  - **9:16 Aspect Ratio Enforced**: Configured `Preview` and `ImageCapture` with CameraX's `ResolutionSelector` using `AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY`, and `Recorder` with `setAspectRatio(AspectRatio.RATIO_16_9)` and HD/FHD quality selector. Both preview and output photos and video segments are strictly 9:16 portrait.
+  - **Atomic File Delivery**: `LocalUploader` writes decrypted files to a `.tmp` file before atomically renaming to final destination, ensuring 0-byte or incomplete files are never exposed in `cloud/`.
 - Verification & Quality:
   - `assembleDebug`: **BUILD SUCCESSFUL**
   - `assembleRelease`: **BUILD SUCCESSFUL** (ProGuard / R8 minification + resource shrinking passed)

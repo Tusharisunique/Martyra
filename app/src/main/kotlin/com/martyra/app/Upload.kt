@@ -18,15 +18,22 @@ class LocalUploader(ctx: Context) : Uploader {
 
     override suspend fun upload(key: String, data: InputStream, meta: Evidence): Boolean {
         val destDir = cloud ?: return false
-        val dest = File(destDir, meta.file.removeSuffix(".enc"))
+        val finalName = meta.file.removeSuffix(".enc")
+        val dest = File(destDir, finalName)
+        val tmp = File(destDir, "$finalName.tmp")
         return try {
-            dest.outputStream().use { out ->
+            tmp.outputStream().use { out ->
                 data.use { input -> input.copyTo(out) }
             }
-            true
+            if (tmp.renameTo(dest)) {
+                true
+            } else {
+                tmp.delete()
+                false
+            }
         } catch (e: Exception) {
             android.util.Log.e("UploadWorker", "LocalUploader failed for ${meta.file}", e)
-            dest.delete()
+            tmp.delete()
             false
         }
     }
