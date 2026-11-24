@@ -246,12 +246,13 @@ class CaptureService : LifecycleService() {
         val loc = lastLocation()
         val s = seq++
         val finalSid = if (sid != 0L) sid else lastSessionId
+        // Start next segment immediately — before sealing (sealing is disk I/O, not camera)
+        if (going) {
+            startSegment()
+        }
         seal(applicationContext, raw, finalSid, s, System.currentTimeMillis(), loc?.latitude, loc?.longitude)
         notifySealedToMainProcess()
-        if (going) {
-            ContextCompat.getMainExecutor(this).execute { startSegment() }
-        } else {
-            // Last segment done; service can die if nothing else holds it
+        if (!going && recording == null) {
             if (clientMessenger == null) stopSelf()
         }
     }

@@ -96,10 +96,10 @@ class UploadWorker(ctx: Context, p: WorkerParameters) : CoroutineWorker(ctx, p) 
     override suspend fun doWork(): Result {
         runCatching { setForeground(getForegroundInfo()) }
         var ok = drainOutbox(applicationContext)
-        // Poll up to 3 more times (4 s apart) to catch segments sealed after the first drain
+        // Poll up to 3 more times (1 s apart) to catch segments sealed after the first drain
         val outbox = java.io.File(applicationContext.filesDir, "outbox")
         repeat(3) {
-            delay(4_000L)
+            delay(1_000L)
             val hasEnc = outbox.listFiles { f -> f.name.endsWith(".enc") }?.isNotEmpty() == true
             if (hasEnc) ok = drainOutbox(applicationContext) && ok
         }
@@ -120,7 +120,7 @@ fun enqueueUpload(ctx: Context) {
     }
     WorkManager.getInstance(appContext).enqueueUniqueWork(
         "martyra_upload",
-        ExistingWorkPolicy.KEEP,
+        ExistingWorkPolicy.APPEND_OR_REPLACE,
         OneTimeWorkRequestBuilder<UploadWorker>()
             .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
