@@ -112,32 +112,93 @@ async function renderSession(uid, sid) {
     if (u?.signedUrl) urlCache.set(i, u.signedUrl);
     return u?.signedUrl || null;
   };
-  // Pre-fetch all signed URLs in background so playback never waits
+
+  // Pre-fetch all signed URLs immediately so the buffer is ready before playback starts
   const prefetchAll = () => { for (let i = 0; i < data.length; i++) getUrl(i); };
   prefetchAll();
+
   let cur = 0;
-  // Single video element — simpler and more reliable than double-buffer for sequential MP4s
-  const player = el('video', { controls: '', playsinline: '', className: 'v-player' });
-  a.append(player);
   const rowEls = [], fileCells = [];
+
+  // --- Double-buffer player ---
+  // Two hidden <video> elements. While A plays, B pre-loads the next segment.
+  // On 'ended', swap: make B visible and start playing, reload A with the one after.
+  // Result: zero-gap, visually seamless segment transitions.
+  const mkVid = () => {
+    const v = el('video', { playsinline: '', preload: 'auto', controls: '', className: 'v-player' });
+    v.style.display = 'none';
+    return v;
+  };
+  const vA = mkVid(), vB = mkVid();
+  // Only the active element shows controls; we overlay a single controls bar below
+  const wrap = el('div', { className: 'v-wrap' });
+  wrap.append(vA, vB);
+  a.append(wrap);
+
+  let active = vA, standby = vB;
+  let activeIdx = 0;
+
+  const updateHighlight = (i) => {
+    cur = i;
+    rowEls.forEach((r, idx) => r.classList.toggle('active', idx === cur));
+  };
+
+  // Load a URL into an element and return a Promise that resolves when enough is buffered
+  const loadInto = (vid, url) => {
+    if (!url) return Promise.resolve();
+    vid.src = url;
+    vid.load();
+    return new Promise(res => {
+      const done = () => { vid.removeEventListener('canplay', done); res(); };
+      vid.addEventListener('canplay', done);
+      // Resolve anyway after 3 s so a slow network doesn't block the swap
+      setTimeout(res, 3000);
+    });
+  };
 
   const playSeg = async (i) => {
     if (i < 0 || i >= data.length) return;
-    cur = i;
-    rowEls.forEach((r, idx) => r.classList.toggle('active', idx === cur));
+    updateHighlight(i);
+    activeIdx = i;
     const url = await getUrl(i);
     if (!url) return;
-    player.src = url;
     if (isVid) {
-      player.load();
-      player.play().catch(() => {});
-      // Pre-fetch next segment URL while this one plays
-      if (i + 1 < data.length) getUrl(i + 1);
+      await loadInto(active, url);
+      active.style.display = '';
+      standby.style.display = 'none';
+      active.play().catch(() => {});
+      // Pre-load next segment into standby immediately
+      if (i + 1 < data.length) {
+        const nextUrl = await getUrl(i + 1);
+        if (nextUrl) loadInto(standby, nextUrl);
+      }
+    } else {
+      // Photo: just show in active slot
+      active.src = url;
+      active.style.display = '';
+      standby.style.display = 'none';
     }
   };
 
   if (isVid) {
-    player.onended = () => { if (cur + 1 < data.length) playSeg(cur + 1); };
+    const onSegEnd = async () => {
+      const next = activeIdx + 1;
+      if (next >= data.length) return;
+      updateHighlight(next);
+      activeIdx = next;
+      // Swap buffers: standby is already loaded → show it and play instantly
+      [active, standby] = [standby, active];
+      standby.style.display = 'none';
+      active.style.display = '';
+      active.play().catch(() => {});
+      // Pre-load next-next into the now-idle standby
+      if (next + 1 < data.length) {
+        const url = await getUrl(next + 1);
+        if (url) loadInto(standby, url);
+      }
+    };
+    vA.addEventListener('ended', onSegEnd);
+    vB.addEventListener('ended', onSegEnd);
   }
   const vBtn = el('button', { id: 'btn-verify' }, 'Verify hashes'), vSum = el('span', { id: 'verify-summary' });
   a.append(el('div', { className: 'vbar' }, vBtn, vSum));
