@@ -12,7 +12,9 @@ local.properties
 
 # Server secrets and deps
 server/.env
+.env
 server/node_modules/
+node_modules/
 
 # IDE
 .idea/
@@ -27,6 +29,12 @@ server/node_modules/
 
 # Design assets (kept locally, not in repo)
 design/
+design/fonts/
+
+# Font files (licensed, not committed)
+app/src/main/assets/gondens.otf
+*.otf
+*.ttf
 
 # Gradle wrapper
 gradle/
@@ -38,4 +46,3 @@ AGENTS*.md
 final_flow*.md
 PRD*.md
 PROGRESS*.md
-

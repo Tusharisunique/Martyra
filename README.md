@@ -112,3 +112,56 @@ For each video segment the viewer fetches a 300-second signed URL, plays it in t
 - All reads go through Supabase **row-level security** (admin role required to see other users' data).
 - No `innerHTML`, `outerHTML`, `eval`, or `document.write` anywhere.
 - Strict CSP: only `self`, the jsDelivr CDN (SRI-pinned), and the Supabase project host are allowed.
+
+---
+
+## Phase 3: Device Signatures, Blockchain Anchoring and Verification
+
+### What VERIFIED proves
+1. The file bytes are exactly the ones a registered device key signed.
+2. The signed time, location and device name have not been altered.
+3. That signed record existed no later than the blockchain timestamp of its anchor.
+
+### What it does not prove
+- That the scene is real or not staged (a screen filmed with the camera passes).
+- That the capturing phone or app was genuine. A rooted or instrumented phone can use the real device key to sign false content. Hardware key attestation is future work.
+- Anything about the period before anchoring: a compromised server could fabricate a record before it is anchored. The window is the batch interval (default 5 minutes) plus upload time.
+- That the file still exists. The anchor proves a file with that fingerprint existed, but deleted content cannot be shown.
+- That the device clock or GPS were truthful. The anchor time gives an upper bound ("no later than").
+- Permanence on a testnet. Testnets can be reset or retired. Real evidence needs a mainnet deployment.
+
+### Phase 3 Setup
+
+1. Run `supabase/phase3.sql` in the Supabase SQL Editor. **This deletes Phase 2 test data.** Delete old test Storage files by hand.
+2. Create a new dedicated wallet (MetaMask) for anchoring only. Add Polygon Amoy (chain ID 80002, currency POL) and get test POL from a faucet.
+3. Deploy `contracts/MartyraAnchor.sol` with Remix (compiler 0.8.20+, Injected Provider on Amoy). Copy the contract address.
+4. Fill `server/.env` with `CHAIN_RPC_URL`, `CHAIN_PRIVATE_KEY`, `CONTRACT_ADDRESS`, and the verifier keys `SUPABASE_KEY`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
+5. Put the licensed Gondens font at `app/src/main/assets/gondens.otf` (git-ignored). The app builds and runs without it using the system font as fallback.
+6. **Uninstall the old app** before installing the Phase 3 build — pre-Phase-3 items are unsigned and not supported.
+
+### Running the server
+
+```bash
+cd server
+npm install
+npm start
+# Anchoring starts automatically when CHAIN_RPC_URL, CHAIN_PRIVATE_KEY and CONTRACT_ADDRESS are set.
+# For fast testing: BATCH_SECONDS=30 CONFIRMATIONS=2 npm start
+```
+
+### Running the verifier
+
+```bash
+cd server
+npm run verify -- <user_id> <session> <seq>          # fetches the file from Supabase Storage
+npm run verify -- <user_id> <session> <seq> file.mp4 # uses a local file (for tampering tests)
+# Exit codes: 0 VERIFIED, 1 TAMPERED, 2 NOT YET ANCHORED
+```
+
+### Limitations (Phase 3)
+
+- The server must run as a single instance.
+- Anchoring costs gas; batching keeps it small. Check fees before mainnet deployment.
+- If the Keystore key is lost but sign-in remains, uploads are rejected with `key_mismatch`.
+- Pre-Phase-3 recordings on the phone are not supported; reinstall the app.
+- The font file (Gondens) is not in the repository; "Martyra" shows in the system font if the file is absent.

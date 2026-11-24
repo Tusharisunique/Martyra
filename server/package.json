@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node --env-file=.env server.js"
+    "start": "node --env-file=.env server.js",
+    "verify": "node --env-file=.env verify.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "2.49.8",
-    "fastify": "5.3.2"
+    "@supabase/supabase-js": "2.119.2",
+    "ethers": "6.17.0",
+    "fastify": "5.12.8"
   }
 }
