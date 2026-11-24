@@ -89,36 +89,44 @@ async function renderSession(uid, sid) {
   const { data, error } = await sb.from('evidence').select('*').eq('user_id', uid).eq('session', sid).order('seq');
   if (error) return a.append(el('div', { className: 'error' }, error.message));
   if (!data?.length) return a.append(el('div', {}, 'Nothing here.'));
+  // Sort by seq so order is always correct regardless of upload order
+  data.sort((a, b) => a.seq - b.seq);
   a.append(el('h2', {}, `Session ${sid}`));
   const isVid = data[0].kind === 'video', urlCache = new Map();
   const getUrl = async (i) => {
     if (i < 0 || i >= data.length) return null;
     if (urlCache.has(i)) return urlCache.get(i);
-    const { data: u } = await sb.storage.from('evidence').createSignedUrl(data[i].path, 300);
+    const { data: u } = await sb.storage.from('evidence').createSignedUrl(data[i].path, 600);
     if (u?.signedUrl) urlCache.set(i, u.signedUrl);
     return u?.signedUrl || null;
   };
-  let cur = 0, deck = 0;
-  const p0 = el(isVid ? 'video' : 'img', isVid ? { controls: '', playsinline: '', className: 'v-player' } : { id: 'photo' });
-  const p1 = isVid ? el('video', { controls: '', playsinline: '', className: 'v-player', style: 'display:none' }) : null;
-  const decks = [p0, p1];
-  a.append(p0); if (p1) a.append(p1);
+  // Pre-fetch all signed URLs in background so playback never waits
+  const prefetchAll = () => { for (let i = 0; i < data.length; i++) getUrl(i); };
+  prefetchAll();
+  let cur = 0;
+  // Single video element — simpler and more reliable than double-buffer for sequential MP4s
+  const player = el('video', { controls: '', playsinline: '', className: 'v-player' });
+  a.append(player);
   const rowEls = [], fileCells = [];
+
   const playSeg = async (i) => {
     if (i < 0 || i >= data.length) return;
-    cur = i; rowEls.forEach((r, idx) => r.classList.toggle('active', idx === cur));
-    const url = await getUrl(i), curr = decks[deck];
-    if (url && curr.src !== url) curr.src = url;
-    if (isVid) curr.play().catch(() => {});
-    if (isVid && i + 1 < data.length) {
-      getUrl(i + 1).then(nxt => { if (nxt) { decks[1 - deck].src = nxt; decks[1 - deck].preload = 'auto'; } });
+    cur = i;
+    rowEls.forEach((r, idx) => r.classList.toggle('active', idx === cur));
+    const url = await getUrl(i);
+    if (!url) return;
+    player.src = url;
+    if (isVid) {
+      player.load();
+      player.play().catch(() => {});
+      // Pre-fetch next segment URL while this one plays
+      if (i + 1 < data.length) getUrl(i + 1);
     }
   };
-  if (isVid) p0.onended = p1.onended = () => {
-    if (cur + 1 < data.length) {
-      decks[deck].style.display = 'none'; deck = 1 - deck; decks[deck].style.display = 'block'; playSeg(cur + 1);
-    }
-  };
+
+  if (isVid) {
+    player.onended = () => { if (cur + 1 < data.length) playSeg(cur + 1); };
+  }
   const vBtn = el('button', { id: 'btn-verify' }, 'Verify hashes'), vSum = el('span', { id: 'verify-summary' });
   a.append(el('div', { className: 'vbar' }, vBtn, vSum));
   const tbl = el('table', {}), thead = el('tr', {}), tbody = el('tbody', {});
@@ -126,10 +134,7 @@ async function renderSession(uid, sid) {
   tbl.append(el('thead', {}, thead));
   data.forEach((r, i) => {
     const tr = el('tr', { id: `row-${r.seq}`, style: 'cursor:pointer' });
-    tr.onclick = () => {
-      if (isVid && deck !== 0) { decks[1].style.display = 'none'; decks[0].style.display = 'block'; deck = 0; }
-      playSeg(i);
-    };
+    tr.onclick = () => { playSeg(i); };
     const loc = (r.lat != null && r.lon != null) ? `${Number(r.lat).toFixed(4)},${Number(r.lon).toFixed(4)}` : '–';
     const tag = el('span', { className: r.hash_ok ? 'tag ok' : 'flagged' }, r.hash_ok ? 'ok' : 'FLAGGED');
     const fCell = el('td', {}, '–');

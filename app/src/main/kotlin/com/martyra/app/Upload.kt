@@ -14,6 +14,7 @@ import java.io.InputStream
 import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 
 const val ACTION_SEALED = "com.martyra.app.SEALED"
@@ -95,6 +96,8 @@ class UploadWorker(ctx: Context, p: WorkerParameters) : CoroutineWorker(ctx, p) 
     override suspend fun doWork(): Result {
         runCatching { setForeground(getForegroundInfo()) }
         val ok = drainOutbox(applicationContext)
+        // Wait for any segments still being sealed (3 s segments → wait 2 cycles)
+        if (ok) { delay(6_000L); drainOutbox(applicationContext) }
         return if (ok) Result.success() else Result.retry()
     }
 }
