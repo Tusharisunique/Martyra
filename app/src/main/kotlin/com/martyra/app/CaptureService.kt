@@ -201,9 +201,8 @@ class CaptureService : LifecycleService() {
     }
 
     private fun notifySealedToMainProcess() {
-        sendBroadcast(Intent(ACTION_SEALED).apply {
-            setClassName(packageName, UploadReceiver::class.java.name)
-        })
+        // Enqueue directly via WorkManager — works cross-process and survives background restrictions
+        enqueueUpload(applicationContext)
     }
 
     @SuppressLint("MissingPermission")
