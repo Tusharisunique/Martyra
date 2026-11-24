@@ -1,9 +1,12 @@
--- Recreate evidence_sessions view with max_seq and missing-segment count.
+-- Recreate evidence_sessions view with kind, max_seq and missing-segment count.
 -- Run once in Supabase Dashboard → SQL Editor.
-create or replace view evidence_sessions with (security_invoker = true) as
+drop view if exists evidence_sessions;
+
+create view evidence_sessions with (security_invoker = true) as
 select
   user_id,
   session,
+  min(kind)                              as kind,
   min(captured_at)                       as started_at,
   count(*)::integer                      as segments,
   sum(size_bytes)                        as bytes,
