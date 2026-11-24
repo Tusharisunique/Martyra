@@ -164,7 +164,7 @@ async function renderSession(uid, sid) {
     if (!url) return;
     if (isVid) {
       await loadInto(active, url);
-      active.style.display = '';
+      active.style.display = 'block';
       standby.style.display = 'none';
       active.play().catch(() => {});
       // Pre-load next segment into standby immediately
@@ -175,7 +175,7 @@ async function renderSession(uid, sid) {
     } else {
       // Photo: just show in active slot
       active.src = url;
-      active.style.display = '';
+      active.style.display = 'block';
       standby.style.display = 'none';
     }
   };
@@ -189,7 +189,7 @@ async function renderSession(uid, sid) {
       // Swap buffers: standby is already loaded → show it and play instantly
       [active, standby] = [standby, active];
       standby.style.display = 'none';
-      active.style.display = '';
+      active.style.display = 'block';
       active.play().catch(() => {});
       // Pre-load next-next into the now-idle standby
       if (next + 1 < data.length) {
