@@ -112,7 +112,7 @@ fun enqueueUpload(ctx: Context) {
     }
     WorkManager.getInstance(appContext).enqueueUniqueWork(
         "martyra_upload",
-        ExistingWorkPolicy.APPEND_OR_REPLACE,
+        ExistingWorkPolicy.KEEP,
         OneTimeWorkRequestBuilder<UploadWorker>()
             .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
