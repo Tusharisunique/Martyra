@@ -18,7 +18,6 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
         android:allowBackup="false"
@@ -44,11 +43,6 @@
             android:process=":capture"
             android:foregroundServiceType="camera|microphone|location" />
 
-        <service
-            android:name=".UploadService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync"
-            android:stopWithTask="false" />
 
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"

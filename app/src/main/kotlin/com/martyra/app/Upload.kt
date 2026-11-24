@@ -106,8 +106,6 @@ class UploadReceiver : BroadcastReceiver() {
 }
 
 fun enqueueUpload(ctx: Context) {
-    runCatching { UploadService.start(ctx) }
-
     val appContext = ctx.applicationContext
     if (!WorkManager.isInitialized()) {
         runCatching { WorkManager.initialize(appContext, Configuration.Builder().build()) }

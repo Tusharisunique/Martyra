@@ -32,7 +32,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -136,9 +138,11 @@ fun ProfileScreen(onContinue: (String) -> Unit, permissionDenied: Boolean) {
 
             Spacer(Modifier.height(10.dp))
 
+            val ctx = LocalContext.current
+            val gondens = remember { loadGondens(ctx) }
             BasicText(
-                "martyra",
-                style = TextStyle(color = White, fontSize = 18.sp, fontWeight = FontWeight.W300, letterSpacing = 6.sp)
+                "Martyra",
+                style = TextStyle(color = White, fontSize = 18.sp, fontFamily = gondens)
             )
 
             Spacer(Modifier.height(52.dp))

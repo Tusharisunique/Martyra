@@ -20,6 +20,9 @@ import java.lang.ref.WeakReference
 
 private const val PREFS = "profile"
 
+// True after the opening animation has played in this process; false on rotation (flag survives rotation via remember)
+private var introPlayedThisProcess = false
+
 class MainActivity : ComponentActivity() {
     private var svcMessenger: Messenger? = null
     private var isBound = false
@@ -105,6 +108,13 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
+            // Show opening once per cold start. introPlayedThisProcess is a process-level flag
+            // so rotation (which creates a new Activity instance but keeps the same process) skips it.
+            var showIntro by remember { mutableStateOf(!introPlayedThisProcess) }
+            if (showIntro) {
+                IntroScreen(onDone = { introPlayedThisProcess = true; showIntro = false })
+                return@setContent
+            }
             if (showProfile) {
                 ProfileScreen(
                     onContinue = { name ->
