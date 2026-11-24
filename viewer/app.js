@@ -92,6 +92,18 @@ async function renderSession(uid, sid) {
   // Sort by seq so order is always correct regardless of upload order
   data.sort((a, b) => a.seq - b.seq);
   a.append(el('h2', {}, `Session ${sid}`));
+  // Show a warning if any seq values are missing (gaps between 0 and max)
+  if (data.length > 0) {
+    const maxSeq = data[data.length - 1].seq;
+    const missing = maxSeq + 1 - data.length;
+    if (missing > 0) {
+      const seqSet = new Set(data.map(r => r.seq));
+      const gaps = [];
+      for (let i = 0; i <= maxSeq; i++) { if (!seqSet.has(i)) gaps.push(i); }
+      a.append(el('div', { className: 'error', id: 'gap-warning' },
+        `${missing} segment${missing > 1 ? 's' : ''} missing (seq ${gaps.join(', ')})`));
+    }
+  }
   const isVid = data[0].kind === 'video', urlCache = new Map();
   const getUrl = async (i) => {
     if (i < 0 || i >= data.length) return null;

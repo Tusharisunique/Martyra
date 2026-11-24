@@ -95,9 +95,14 @@ class UploadWorker(ctx: Context, p: WorkerParameters) : CoroutineWorker(ctx, p) 
 
     override suspend fun doWork(): Result {
         runCatching { setForeground(getForegroundInfo()) }
-        val ok = drainOutbox(applicationContext)
-        // Wait for any segments still being sealed (3 s segments → wait 2 cycles)
-        if (ok) { delay(6_000L); drainOutbox(applicationContext) }
+        var ok = drainOutbox(applicationContext)
+        // Poll up to 3 more times (4 s apart) to catch segments sealed after the first drain
+        val outbox = java.io.File(applicationContext.filesDir, "outbox")
+        repeat(3) {
+            delay(4_000L)
+            val hasEnc = outbox.listFiles { f -> f.name.endsWith(".enc") }?.isNotEmpty() == true
+            if (hasEnc) ok = drainOutbox(applicationContext) && ok
+        }
         return if (ok) Result.success() else Result.retry()
     }
 }
